@@ -1,18 +1,18 @@
 # 04 - Threat Intelligence & Initial Findings
 
-Within minutes of exposing port 22 to the internet, the honeypot began registering automated attacks. [cite_start]The logs (`/home/cowrie/cowrie/var/log/cowrie/cowrie.log`) revealed several distinct attack patterns[cite: 833, 836].
+Within minutes of exposing port 22 to the internet, the honeypot began registering automated attacks. The logs (`/home/cowrie/cowrie/var/log/cowrie/cowrie.log`) revealed several distinct attack patterns.
 
 ## 1. Massive Brute-Force Campaigns
-Certain IPs engaged in aggressive, sustained dictionary attacks. [cite_start]For example, the IP `45.156.87.253` executed over 3,000 login attempts in a single night[cite: 842, 1017].
+Certain IPs engaged in aggressive, sustained dictionary attacks. For example, the IP `45.156.87.253` executed over 3,000 login attempts in a single night.
 
 ## 2. Common Dictionary Testing
-Many bots rely on default or highly predictable credentials. [cite_start]Frequent login attempts included[cite: 834, 842]:
+Many bots rely on default or highly predictable credentials. Frequent login attempts included:
 * `support` / `support`
 * `1234` / `1234`
 * `root` / `password`
 
 ## 3. Targeted Infrastructure Probing
-The most valuable intelligence gathered was identifying specialized bots hunting for specific infrastructure. [cite_start]The IP `80.94.92.182` specifically tested usernames related to Web3 and cryptocurrency nodes, including[cite: 837, 838, 1017]:
+The most valuable intelligence gathered was identifying specialized bots hunting for specific infrastructure. The IP `80.94.92.182` specifically tested usernames related to Web3 and cryptocurrency nodes, including:
 * `solana`
 * `validator`
 * `firedancer`
