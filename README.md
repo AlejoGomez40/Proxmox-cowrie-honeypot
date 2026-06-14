@@ -1,7 +1,6 @@
 # Project 01 — SSH Honeypot with Cowrie on Proxmox
 
 > **Portfolio Project** · Cybersecurity & Networking  
-> Part of a 10-project series built to prepare for roles in Big Tech.
 
 ---
 
@@ -268,5 +267,3 @@ project-01-honeypot-cowrie/
 - Infrastructure-as-documentation: understanding *why* each decision was made, not just how to execute it
 
 ---
-
-*Part of a 10-project portfolio series · Summer 2025*
