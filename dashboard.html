@@ -1,0 +1,359 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Honeypot Analytics Dashboard</title>
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+<style>
+  :root {
+    --bg:       #0a0e1a;
+    --surface:  #111827;
+    --card:     #1a2235;
+    --border:   #1f2e47;
+    --accent:   #00d4ff;
+    --accent2:  #ff4444;
+    --accent3:  #ffd700;
+    --text:     #e2e8f0;
+    --muted:    #64748b;
+    --green:    #00ff88;
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body {
+    background: var(--bg);
+    color: var(--text);
+    font-family: 'Segoe UI', system-ui, sans-serif;
+    min-height: 100vh;
+  }
+  header {
+    background: var(--surface);
+    border-bottom: 1px solid var(--border);
+    padding: 1.5rem 2rem;
+    display: flex;
+    align-items: center;
+    gap: 1rem;
+  }
+  header .dot {
+    width: 10px; height: 10px; border-radius: 50%;
+    background: var(--accent2);
+    box-shadow: 0 0 8px var(--accent2);
+    animation: pulse 1.5s infinite;
+  }
+  @keyframes pulse { 0%,100%{opacity:1} 50%{opacity:.3} }
+  header h1 { font-size: 1.4rem; font-weight: 600; color: var(--text); }
+  header .badge {
+    margin-left: auto;
+    font-size: .75rem;
+    background: rgba(0,212,255,.1);
+    border: 1px solid var(--accent);
+    color: var(--accent);
+    padding: .25rem .75rem;
+    border-radius: 999px;
+  }
+  .container { max-width: 1400px; margin: 0 auto; padding: 2rem; }
+
+  /* Summary cards */
+  .stats-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
+    gap: 1rem;
+    margin-bottom: 2rem;
+  }
+  .stat-card {
+    background: var(--card);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    padding: 1.25rem;
+    text-align: center;
+  }
+  .stat-card .value {
+    font-size: 2rem;
+    font-weight: 700;
+    font-variant-numeric: tabular-nums;
+    line-height: 1;
+    margin-bottom: .4rem;
+  }
+  .stat-card .label { font-size: .75rem; color: var(--muted); text-transform: uppercase; letter-spacing: .05em; }
+  .stat-card.red   .value { color: var(--accent2); }
+  .stat-card.blue  .value { color: var(--accent);  }
+  .stat-card.gold  .value { color: var(--accent3); }
+  .stat-card.green .value { color: var(--green);   }
+
+  /* Charts grid */
+  .charts-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 1.5rem;
+    margin-bottom: 1.5rem;
+  }
+  .charts-grid.full { grid-template-columns: 1fr; }
+  .chart-card {
+    background: var(--card);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    padding: 1.5rem;
+  }
+  .chart-card h2 {
+    font-size: .85rem;
+    text-transform: uppercase;
+    letter-spacing: .08em;
+    color: var(--muted);
+    margin-bottom: 1.25rem;
+  }
+  .chart-card canvas { max-height: 280px; }
+
+  /* Tables */
+  .tables-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 1.5rem;
+    margin-bottom: 1.5rem;
+  }
+  .table-card {
+    background: var(--card);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    padding: 1.5rem;
+    overflow: hidden;
+  }
+  .table-card h2 {
+    font-size: .85rem;
+    text-transform: uppercase;
+    letter-spacing: .08em;
+    color: var(--muted);
+    margin-bottom: 1rem;
+  }
+  table { width: 100%; border-collapse: collapse; font-size: .83rem; }
+  th { color: var(--muted); font-weight: 500; text-align: left; padding: .4rem .6rem; border-bottom: 1px solid var(--border); }
+  td { padding: .45rem .6rem; border-bottom: 1px solid rgba(31,46,71,.5); font-family: monospace; }
+  tr:last-child td { border-bottom: none; }
+  tr:hover td { background: rgba(0,212,255,.03); }
+  .rank { color: var(--muted); font-size: .75rem; }
+  .bar-cell { display: flex; align-items: center; gap: .5rem; }
+  .bar { height: 6px; border-radius: 3px; background: var(--accent); opacity: .7; min-width: 2px; }
+  .bar.red  { background: var(--accent2); }
+  .bar.gold { background: var(--accent3); }
+  .count { color: var(--accent); font-weight: 600; }
+
+  footer {
+    text-align: center;
+    padding: 2rem;
+    color: var(--muted);
+    font-size: .8rem;
+    border-top: 1px solid var(--border);
+    margin-top: 2rem;
+  }
+</style>
+</head>
+<body>
+<header>
+  <div class="dot"></div>
+  <h1>🍯 Honeypot Analytics Dashboard</h1>
+  <span class="badge">Cowrie SSH · sensor: honeypot</span>
+</header>
+
+<div class="container">
+
+  <!-- Summary cards -->
+  <div class="stats-grid" id="stats"></div>
+
+  <!-- Hourly activity -->
+  <div class="charts-grid full">
+    <div class="chart-card">
+      <h2>📈 Connection Activity Over Time</h2>
+      <canvas id="hourlyChart"></canvas>
+    </div>
+  </div>
+
+  <!-- Commands + Versions -->
+  <div class="charts-grid">
+    <div class="chart-card">
+      <h2>💻 Top Commands Executed</h2>
+      <canvas id="cmdChart"></canvas>
+    </div>
+    <div class="chart-card">
+      <h2>🤖 Attacker SSH Client Versions</h2>
+      <canvas id="versionChart"></canvas>
+    </div>
+  </div>
+
+  <!-- Tables -->
+  <div class="tables-grid">
+    <div class="table-card">
+      <h2>🔑 Top Credentials (Successful Logins)</h2>
+      <table id="credsTable"></table>
+    </div>
+    <div class="table-card">
+      <h2>🌐 Top Attacker IPs</h2>
+      <table id="ipsTable"></table>
+    </div>
+  </div>
+
+  <div class="tables-grid" style="grid-template-columns:1fr">
+    <div class="table-card">
+      <h2>⚠️ Top Commands Run by Attackers</h2>
+      <table id="cmdsTable"></table>
+    </div>
+  </div>
+
+</div>
+
+<footer>
+  Generated by <strong>analyze.py</strong> · Data from Cowrie SSH Honeypot · 
+  <span id="genTime"></span>
+</footer>
+
+<script>
+const DATA = {"summary": {"total_events": 86842, "total_connections": 11384, "unique_ips": 673, "public_ips": 672, "logins_success": 10727, "logins_failed": 121, "commands_run": 10460, "downloads": 14, "avg_session_sec": 4.85}, "top_creds_ok": [[["support", "support"], 138], [["1234", "1234"], 91], [["admin", "admin"], 61], [["guest", "guest"], 24], [["root", "admin"], 24], [["ubuntu", "ubuntu"], 23], [["root", "ubuntu"], 18], [["admin", "123456789"], 16], [["admin", "password"], 16], [["admin", "admin123"], 16], [["root", "1"], 16], [["node", "node"], 16], [["root", "123"], 15], [["oracle", "oracle"], 15], [["admin", "123456"], 15], [["admin", "abc123"], 15], [["username", "password"], 15], [["root", "root123"], 15], [["openclaw", "1"], 15], [["root", "1qaz@WSX"], 15]], "top_creds_fail": [[["root", ""], 84], [["root", "root"], 25], [["root", "123456"], 12]], "top_commands": [["uname -s -v -n -r -m", 8510], ["export PATH=/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin:$PATH; uname=$(uname -s -v -n -m 2>/dev/null); arch=$(uname -m 2>/dev/null); uptime=$(cat /proc/uptime 2>/dev/null | cut -d. -f1); cpus=$( (nproc 2>/dev/null || /usr/bin/nproc 2>/dev/null || grep -c \"^processor\" /proc/cpuinfo 2>/dev/null) | head -1); cpu_model=$( (grep -m1 -E \"model name|Hardware\" /proc/cpuinfo | cut -d: -f2- | sed 's/^ *//;s/ *$//' ; lscpu 2>/dev/null | awk -F: '/Model name/ {gsub(/^ +| +$/,\"\",$2); print $2; exit}' ; dmidecode -s processor-version 2>/dev/null | head -n1 ; uname -p 2>/dev/null) | awk 'NF{print; exit}' ); gpu_info=$( (lspci 2>/dev/null | grep -i vga; lspci 2>/dev/null | grep -i nvidia) 2>/dev/null | head -n50); cat_help=$( (cat --help 2>&1 | tr '\\n' ' ') || cat --help 2>&1); ls_help=$( (ls --help 2>&1 | tr '\\n' ' ') || ls --help 2>&1); last_output=$(last 2>/dev/null | head -n 10); echo \"UNAME:$uname\"; echo \"ARCH:$arch\"; echo \"UPTIME:$uptime\"; echo \"CPUS:$cpus\"; echo \"CPU_MODEL:$cpu_model\"; echo \"GPU:$gpu_info\"; echo \"CAT_HELP:$cat_help\"; echo \"LS_HELP:$ls_help\"; echo \"LAST:$last_output\"", 382], ["uname -s -v -n -m 2 > /dev/null", 382], ["uname -m 2 > /dev/null", 382], ["cat /proc/uptime 2 > /dev/null | cut -d. -f1", 382], ["/bin/./uname -s -v -n -r -m", 160], ["echo 'dGVzdA==' | base64 -d 2>/dev/null", 60], ["uname -a ; echo 'vT'", 49], ["uname -a", 24], ["uname -s -m", 13], ["cd ~; chattr -ia .ssh; lockr -ia .ssh", 11], ["cd ~ && rm -rf .ssh && mkdir .ssh && echo \"ssh-rsa AAAAB3NzaC1yc2EAAAABJQAAAQEArDp4cun2lhr4KUhBGE7VvAcwdli2a8dbnrTOrbMz1+5O73fcBOx8NVbUT0bUanUV9tJ2/9p7+vD0EpZ3Tz/+0kX34uAx1RV/75GVOmNx+9EuWOnvNoaJe0QXxziIg9eLBHpgLMuakb5+BgTFB+rKJAw9u9FSTDengvS8hX1kNFS4Mjux0hJOK8rvcEmPecjdySYMb66nylAKGwCEE6WEQHmd1mUPgHwGQ0hWCwsQk13yCGPK5w6hYp5zYkFnvlC8hGmd4Ww+u97k6pfTGTUbJk14ujvcD9iUKQTTWYYjIIu5PmUux5bsZ0R4WFwdIe6+i6rBLAsPKgAySVKPRK+oRw== mdrfckr\">>.ssh/authorized_keys && chmod -R go= ~/.ssh && cd ~", 11], ["/ip cloud print", 7], ["ifconfig", 7], ["cat /proc/cpuinfo", 7], ["ps | grep '[Mm]iner'", 7], ["ps -ef | grep '[Mm]iner'", 7], ["ls -la ~/.local/share/TelegramDesktop/tdata /home/*/.local/share/TelegramDesktop/tdata /dev/ttyGSM* /dev/ttyUSB-mod* /var/spool/sms/* /var/log/smsd.log /etc/smsd.conf* /usr/bin/qmuxd /var/qmux_connect_socket /etc/config/simman /dev/modem* /var/config/sms/*", 7], ["locate D877F783D5D3EF8Cs", 7], ["echo Hi | cat -n", 7], ["ls 2>/dev/null", 6], ["logout", 2], ["whoami", 1], ["ls", 1], ["cat /etc/passwd", 1]], "top_ips": [["45.153.34.71", 800], ["91.92.40.19", 762], ["91.92.40.200", 762], ["45.153.34.114", 761], ["45.156.87.204", 761], ["45.156.87.216", 761], ["45.156.87.34", 761], ["91.92.42.34", 757], ["91.92.42.61", 749], ["45.153.34.112", 712], ["45.156.87.253", 676], ["213.177.179.91", 439], ["91.92.40.4", 308], ["45.156.87.254", 149], ["116.110.156.254", 145], ["45.153.34.181", 139], ["87.251.64.176", 120], ["43.156.212.6", 97], ["176.65.139.56", 89], ["27.79.40.20", 88]], "hourly": [["2026-06-10 04:00", 116], ["2026-06-10 05:00", 418], ["2026-06-10 06:00", 253], ["2026-06-10 07:00", 5], ["2026-06-10 08:00", 5], ["2026-06-10 09:00", 24], ["2026-06-10 10:00", 17], ["2026-06-10 11:00", 20], ["2026-06-10 12:00", 5], ["2026-06-10 13:00", 8], ["2026-06-10 14:00", 1], ["2026-06-10 15:00", 6], ["2026-06-10 16:00", 2], ["2026-06-10 17:00", 9], ["2026-06-10 18:00", 796], ["2026-06-10 19:00", 11], ["2026-06-10 20:00", 10], ["2026-06-10 21:00", 2], ["2026-06-10 22:00", 105], ["2026-06-10 23:00", 383], ["2026-06-11 00:00", 271], ["2026-06-11 01:00", 478], ["2026-06-11 02:00", 226], ["2026-06-11 03:00", 18], ["2026-06-11 04:00", 8], ["2026-06-11 05:00", 4], ["2026-06-11 06:00", 24], ["2026-06-11 07:00", 11], ["2026-06-11 08:00", 11], ["2026-06-11 09:00", 11], ["2026-06-11 10:00", 17], ["2026-06-11 11:00", 10], ["2026-06-11 12:00", 20], ["2026-06-11 13:00", 10], ["2026-06-11 14:00", 3], ["2026-06-11 15:00", 5], ["2026-06-11 16:00", 37], ["2026-06-11 17:00", 124], ["2026-06-11 18:00", 8], ["2026-06-11 19:00", 7], ["2026-06-11 20:00", 4], ["2026-06-11 21:00", 9], ["2026-06-11 22:00", 12], ["2026-06-11 23:00", 4], ["2026-06-12 00:00", 4], ["2026-06-12 01:00", 9], ["2026-06-12 02:00", 12], ["2026-06-12 03:00", 506], ["2026-06-12 04:00", 285], ["2026-06-12 05:00", 19], ["2026-06-12 06:00", 13], ["2026-06-12 07:00", 11], ["2026-06-12 08:00", 14], ["2026-06-12 09:00", 7], ["2026-06-12 10:00", 5], ["2026-06-12 11:00", 5], ["2026-06-12 12:00", 6], ["2026-06-12 13:00", 84], ["2026-06-12 14:00", 468], ["2026-06-12 15:00", 228], ["2026-06-12 16:00", 2], ["2026-06-12 17:00", 9], ["2026-06-12 18:00", 8], ["2026-06-12 19:00", 218], ["2026-06-12 20:00", 514], ["2026-06-12 21:00", 27], ["2026-06-12 22:00", 13], ["2026-06-12 23:00", 33], ["2026-06-13 00:00", 21], ["2026-06-13 01:00", 23], ["2026-06-13 02:00", 12], ["2026-06-13 03:00", 15], ["2026-06-13 04:00", 16], ["2026-06-13 05:00", 13], ["2026-06-13 06:00", 32], ["2026-06-13 07:00", 26], ["2026-06-13 08:00", 13], ["2026-06-13 09:00", 14], ["2026-06-13 10:00", 6], ["2026-06-13 11:00", 166], ["2026-06-13 12:00", 18], ["2026-06-13 13:00", 15], ["2026-06-13 14:00", 19], ["2026-06-13 15:00", 22], ["2026-06-13 16:00", 16], ["2026-06-13 17:00", 882], ["2026-06-13 18:00", 53], ["2026-06-13 19:00", 12], ["2026-06-13 20:00", 24], ["2026-06-13 21:00", 66], ["2026-06-13 22:00", 753], ["2026-06-13 23:00", 820], ["2026-06-14 00:00", 183], ["2026-06-14 01:00", 785], ["2026-06-14 02:00", 52], ["2026-06-14 03:00", 48], ["2026-06-14 04:00", 68], ["2026-06-14 05:00", 53], ["2026-06-14 06:00", 64], ["2026-06-14 07:00", 62], ["2026-06-14 08:00", 54], ["2026-06-14 09:00", 50], ["2026-06-14 10:00", 19], ["2026-06-14 11:00", 11], ["2026-06-14 12:00", 23], ["2026-06-14 13:00", 20], ["2026-06-14 14:00", 30], ["2026-06-14 15:00", 36], ["2026-06-14 16:00", 34], ["2026-06-14 17:00", 30], ["2026-06-14 18:00", 38], ["2026-06-14 19:00", 272], ["2026-06-14 20:00", 294], ["2026-06-14 21:00", 60], ["2026-06-14 22:00", 13]], "daily": [["2026-06-10", 2196], ["2026-06-11", 1332], ["2026-06-12", 2500], ["2026-06-13", 3057], ["2026-06-14", 2299]], "top_versions": [["SSH-2.0-Go", 10066], ["SSH-2.0-OpenSSH_7.4", 339], ["SSH-2.0-AsyncSSH_2.1.0", 299], ["SSH-2.0-PuTTY_Release_0.84", 104], ["SSH-2.0-libssh_0.9.6", 33], ["SSH-2.0-Nmap-SSH2-Hostkey", 30], ["SSH-2.0-PUTTY", 23], ["SSH-2.0-libssh2_1.11.1", 22], ["SSH-2.0-ZGrab ZGrab SSH Survey", 17], ["SSH-2.0-OPENSSH_7.9", 12]]};
+
+// ── Helpers ────────────────────────────────────────────────────────────────
+document.getElementById('genTime').textContent = 'Generated ' + new Date().toLocaleString();
+
+function fmt(n) { return n.toLocaleString(); }
+
+const CHART_DEFAULTS = {
+  color: '#e2e8f0',
+  plugins: { legend: { labels: { color: '#64748b', font: { size: 11 } } } },
+};
+Chart.defaults.color = '#64748b';
+
+// ── Summary cards ──────────────────────────────────────────────────────────
+const s = DATA.summary;
+const cards = [
+  { label: 'Total Events',     value: fmt(s.total_events),     cls: 'blue'  },
+  { label: 'Connections',      value: fmt(s.total_connections), cls: 'blue'  },
+  { label: 'Unique IPs',       value: fmt(s.unique_ips),        cls: 'gold'  },
+  { label: 'Public Attackers', value: fmt(s.public_ips),        cls: 'red'   },
+  { label: 'Logins Success',   value: fmt(s.logins_success),    cls: 'red'   },
+  { label: 'Logins Failed',    value: fmt(s.logins_failed),     cls: 'gold'  },
+  { label: 'Commands Run',     value: fmt(s.commands_run),      cls: 'red'   },
+  { label: 'Avg Session (s)',  value: s.avg_session_sec,        cls: 'green' },
+];
+const statsEl = document.getElementById('stats');
+cards.forEach(c => {
+  statsEl.innerHTML += `<div class="stat-card ${c.cls}">
+    <div class="value">${c.value}</div>
+    <div class="label">${c.label}</div>
+  </div>`;
+});
+
+// ── Hourly chart ───────────────────────────────────────────────────────────
+const hourlyLabels = DATA.hourly.map(([h]) => h.slice(5)); // MM-DD HH:00
+const hourlyVals   = DATA.hourly.map(([,v]) => v);
+
+new Chart(document.getElementById('hourlyChart'), {
+  type: 'line',
+  data: {
+    labels: hourlyLabels,
+    datasets: [{
+      label: 'Connections / hour',
+      data: hourlyVals,
+      borderColor: '#00d4ff',
+      backgroundColor: 'rgba(0,212,255,.08)',
+      fill: true,
+      tension: 0.3,
+      pointRadius: hourlyLabels.length > 100 ? 0 : 2,
+      borderWidth: 1.5,
+    }]
+  },
+  options: {
+    responsive: true,
+    plugins: { legend: { display: false } },
+    scales: {
+      x: { ticks: { maxTicksLimit: 12, color: '#64748b' }, grid: { color: '#1f2e47' } },
+      y: { ticks: { color: '#64748b' }, grid: { color: '#1f2e47' } },
+    }
+  }
+});
+
+// ── Top commands bar chart ─────────────────────────────────────────────────
+const topCmds = DATA.top_commands.slice(0, 12);
+new Chart(document.getElementById('cmdChart'), {
+  type: 'bar',
+  data: {
+    labels: topCmds.map(([cmd]) => cmd.length > 30 ? cmd.slice(0,30)+'…' : cmd),
+    datasets: [{
+      label: 'Times executed',
+      data: topCmds.map(([,v]) => v),
+      backgroundColor: 'rgba(255,68,68,.7)',
+      borderColor: '#ff4444',
+      borderWidth: 1,
+      borderRadius: 4,
+    }]
+  },
+  options: {
+    indexAxis: 'y',
+    responsive: true,
+    plugins: { legend: { display: false } },
+    scales: {
+      x: { ticks: { color: '#64748b' }, grid: { color: '#1f2e47' } },
+      y: { ticks: { color: '#e2e8f0', font: { family: 'monospace', size: 11 } }, grid: { display: false } },
+    }
+  }
+});
+
+// ── SSH versions doughnut ──────────────────────────────────────────────────
+const topVers = DATA.top_versions.slice(0, 8);
+new Chart(document.getElementById('versionChart'), {
+  type: 'doughnut',
+  data: {
+    labels: topVers.map(([v]) => v.length > 35 ? v.slice(0,35)+'…' : v),
+    datasets: [{
+      data: topVers.map(([,c]) => c),
+      backgroundColor: [
+        '#00d4ff','#ff4444','#ffd700','#00ff88',
+        '#a78bfa','#fb923c','#34d399','#f472b6'
+      ],
+      borderWidth: 0,
+    }]
+  },
+  options: {
+    responsive: true,
+    plugins: {
+      legend: { position: 'right', labels: { color: '#94a3b8', font: { size: 10 }, boxWidth: 12, padding: 8 } }
+    }
+  }
+});
+
+// ── Credentials table ──────────────────────────────────────────────────────
+const maxCred = DATA.top_creds_ok[0]?.[1] || 1;
+const credsEl = document.getElementById('credsTable');
+credsEl.innerHTML = '<tr><th>#</th><th>Username</th><th>Password</th><th>Count</th></tr>';
+DATA.top_creds_ok.slice(0,15).forEach(([[u,p], c], i) => {
+  const w = Math.round((c/maxCred)*80);
+  credsEl.innerHTML += `<tr>
+    <td class="rank">${i+1}</td>
+    <td>${u}</td>
+    <td>${p}</td>
+    <td><div class="bar-cell"><div class="bar gold" style="width:${w}px"></div><span class="count">${c}</span></div></td>
+  </tr>`;
+});
+
+// ── IPs table ──────────────────────────────────────────────────────────────
+const maxIP = DATA.top_ips[0]?.[1] || 1;
+const ipsEl = document.getElementById('ipsTable');
+ipsEl.innerHTML = '<tr><th>#</th><th>IP Address</th><th>Connections</th></tr>';
+DATA.top_ips.slice(0,15).forEach(([ip, c], i) => {
+  const w = Math.round((c/maxIP)*80);
+  ipsEl.innerHTML += `<tr>
+    <td class="rank">${i+1}</td>
+    <td>${ip}</td>
+    <td><div class="bar-cell"><div class="bar red" style="width:${w}px"></div><span class="count">${c}</span></div></td>
+  </tr>`;
+});
+
+// ── Commands table ─────────────────────────────────────────────────────────
+const maxCmd = DATA.top_commands[0]?.[1] || 1;
+const cmdsEl = document.getElementById('cmdsTable');
+cmdsEl.innerHTML = '<tr><th>#</th><th>Command</th><th>Count</th></tr>';
+DATA.top_commands.slice(0,20).forEach(([cmd, c], i) => {
+  const w = Math.round((c/maxCmd)*120);
+  cmdsEl.innerHTML += `<tr>
+    <td class="rank">${i+1}</td>
+    <td>${cmd.replace(/</g,'&lt;')}</td>
+    <td><div class="bar-cell"><div class="bar" style="width:${w}px"></div><span class="count">${c}</span></div></td>
+  </tr>`;
+});
+</script>
+</body>
+</html>
