@@ -96,7 +96,14 @@ def analyze(events: list[dict]) -> dict:
 
     # Session duration
     closed = [e for e in events if e.get("eventid") == "cowrie.session.closed"]
-    durations = [e.get("duration", 0) for e in closed if e.get("duration") is not None]
+    durations = []
+    for e in closed:
+      d = e.get("duration")
+      if d is not None:
+        try:
+            durations.append(float(d))
+        except (ValueError, TypeError):
+            pass
     avg_duration = sum(durations) / len(durations) if durations else 0
 
     return {
