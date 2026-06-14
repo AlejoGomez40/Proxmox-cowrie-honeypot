@@ -1,6 +1,6 @@
 # 🍯 SSH Honeypot — Threat Intelligence Platform
 
-> **Live Dashboard →** [alejogomez40.github.io/Proxmox-cowrie-honeypot/dashboard.html](https://alejogomez40.github.io/Proxmox-cowrie-honeypot/dashboard.html)
+> **Dashboard generated from 4-day live capture (Jun 10–14 2026) →** [alejogomez40.github.io/Proxmox-cowrie-honeypot/dashboard.html](https://alejogomez40.github.io/Proxmox-cowrie-honeypot/dashboard.html)
 
 A production-grade SSH honeypot deployed on a home Proxmox server, isolated in a dedicated DMZ network segment, exposed to the real internet. Captures live attack data from automated botnets and human attackers — then analyzes it with a custom Python pipeline and interactive dashboard.
 
